@@ -27,7 +27,7 @@ import java.util.Set;
 
 import mera.com.testapp.R;
 import mera.com.testapp.api.WebService;
-import mera.com.testapp.api.db.DatabaseHelper;
+import mera.com.testapp.api.db.StateSortType;
 import mera.com.testapp.api.models.State;
 
 public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
@@ -89,7 +89,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
-        if(itemId == R.id.list_filter) {
+        if (itemId == R.id.list_filter) {
             showFilterDialog();
             return true;
         }
@@ -132,7 +132,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "StatesReceiver: onReceive action: " + intent.getAction());
-            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, DatabaseHelper.SortType.NONE);
+            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();
@@ -156,7 +156,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 mChosenFilterPosition = which;
-                if(which == 0) {
+                if (which == 0) {
                     mCountryFilter = "";
                 } else {
                     mCountryFilter = COUNTRIES[which];
@@ -180,7 +180,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
             WebService.LocalBinder localBinder = (WebService.LocalBinder) iBinder;
             service = localBinder.getService();
-            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, DatabaseHelper.SortType.NONE);
+            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();
@@ -191,7 +191,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
                 mSwipeRefreshLayout.setRefreshing(true);
                 service.requestStates(mContext);
             }
-         }
+        }
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {

@@ -15,8 +15,9 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".api.WebService"
-            android:process=":background"/>
+        <service android:name=".api.WebService" />
+        <!-- The service and the activity should run in the same process unless we want to deal with AIDL
+            android:process=":background"/>-->
     </application>
 
 </manifest>

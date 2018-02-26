@@ -5,10 +5,12 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
-import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import mera.com.testapp.api.models.State;
@@ -16,20 +18,27 @@ import mera.com.testapp.api.models.State;
 import static mera.com.testapp.api.db.StateTable.TABLE_STATE;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
-    private static DatabaseHelper sInstance;
-    private static Context sContext;
+    private static final int DB_VERSION = 1;
+
+    // double-checked thread-safe singleton implementation (see Wiki ;-) )
+    // p.s. no need of keeping static Context here
+    private static volatile DatabaseHelper sInstance = null;
 
     public static DatabaseHelper getInstance(Context context) {
-        sContext = context;
         if (sInstance == null) {
-            sInstance = new DatabaseHelper();
+            synchronized (DatabaseHelper.class) {
+                if (sInstance == null) {
+                    sInstance = new DatabaseHelper(context);
+                }
+            }
         }
 
         return sInstance;
     }
 
-    public DatabaseHelper() {
-        super(sContext, "database.db", null, 1);
+    private DatabaseHelper(Context context) {
+        // replaced hardcoded version with constant field
+        super(context, "database.db", null, DB_VERSION);
     }
 
     @Override
@@ -38,88 +47,85 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // dumb upgrade policy
+        db.execSQL(StateTable.DELETE_TABLE_STATE);
+        onCreate(db);
+    }
 
-    public boolean insert(ArrayList<State> states) {
+    // 1. insert WHAT ??
+    // 2. should use more general type if possible
+    // 3. what's the reason of returning false if not all states are inserted ?
+    public boolean insertStates(List<State> states) {
         if (states == null || states.isEmpty()) {
             return false;
         }
 
-        boolean isAllInserted = true;
-
         SQLiteDatabase db = getWritableDatabase();
-        for (State state : states) {
-            ContentValues cv = new ContentValues(10);
-            cv.put(StateTable.KEY_STATE_ICAO, state.getIcao24());
-            cv.put(StateTable.KEY_STATE_CALLSIGN, state.getCallsign());
-            cv.put(StateTable.KEY_STATE_COUNTRY, state.getOriginCountry());
-            cv.put(StateTable.KEY_STATE_VELOCITY, state.getVelocity());
+        db.beginTransaction();
 
-            long rowId = db.insert(TABLE_STATE, null, cv);
-            if (rowId == -1) {
-                isAllInserted = false;
-                break;
-            }
-        }
+        try {
+            for (State state : states) {
+                ContentValues cv = new ContentValues(4);
+                cv.put(StateTable.KEY_STATE_ICAO, state.getIcao24());
+                cv.put(StateTable.KEY_STATE_CALLSIGN, state.getCallsign());
+                cv.put(StateTable.KEY_STATE_COUNTRY, state.getOriginCountry());
+                cv.put(StateTable.KEY_STATE_VELOCITY, state.getVelocity());
 
-        return isAllInserted;
-    }
-
-    public Set<State> query(String countryFilter, SortType type) {
-        Set<State> result = new HashSet<>();
-
-        SQLiteDatabase db = getWritableDatabase();
-        Cursor cursor = db.query(TABLE_STATE, null, null, null, null, null, getSortString(type));
-        while (cursor.moveToNext()) {
-            result.add(StateTable.convert(cursor));
-        }
-
-        if(!TextUtils.isEmpty(countryFilter)) {
-            for (State state : result) {
-                if (!state.getOriginCountry().equals(countryFilter)) {
-                    result.remove(state);
+                if (db.insert(TABLE_STATE, null, cv) == -1) {
+                    return false;
                 }
             }
+
+            db.setTransactionSuccessful();
+            return true;
+
+        } finally {
+            db.endTransaction();
+            db.close();
+        }
+    }
+
+    // query WHAT ??
+    // the filtering in the loop is non-optimal. Should use SQL instead
+    // sortType should be non-null
+    public Set<State> queryStatesByCountry(String countryFilter, @NonNull StateSortType sortType) {
+        // insertion order sould be preserved
+        Set<State> result = new LinkedHashSet<>();
+
+        // no need for writable db here
+        SQLiteDatabase db = getReadableDatabase();
+
+        String selection = !TextUtils.isEmpty(countryFilter) ?
+                "upper(" + StateTable.KEY_STATE_COUNTRY + ")=upper(?)" :
+                null;
+        String[] selectionArgs = !TextUtils.isEmpty(countryFilter) ?
+                new String[]{countryFilter} :
+                null;
+
+        Cursor cursor = db.query(TABLE_STATE,
+                null,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                sortType.getSortString());
+
+        while (cursor.moveToNext()) {
+            result.add(StateTable.fromCursor(cursor));
         }
 
+        db.close();
         return result;
     }
 
-    public void delete() {
+    // renamed to clear()
+    // db not closed
+    public void clear() {
         SQLiteDatabase db = getWritableDatabase();
         db.delete(TABLE_STATE, null, null);
+        db.close();
     }
 
-    private String getSortString(SortType sortType) {
-        if(sortType == SortType.NONE) {
-            return "";
-        }
-
-        String field;
-
-        switch(sortType) {
-            case VEL_ASC:
-                field = StateTable.KEY_STATE_VELOCITY;
-                break;
-            case VEL_DESC:
-                field = StateTable.KEY_STATE_VELOCITY;
-                break;
-            case SIGN_ASC:
-                field = StateTable.KEY_STATE_CALLSIGN;
-            case SIGN_DESC:
-                field = StateTable.KEY_STATE_CALLSIGN;
-                break;
-            default:
-                field = StateTable.KEY_STATE_COUNTRY;
-                break;
-        }
-
-        String orderString = sortType.name().contains("ASC") ? "ASC" : "DESC";
-
-        return field + " " + orderString;
-    }
-
-    public enum SortType {
-        NONE, VEL_ASC, VEL_DESC, SIGN_ASC, SIGN_DESC,
-    }
+    // getSortString(SortType) has been replaced with complete enum implementation (see StateSortType)
 }

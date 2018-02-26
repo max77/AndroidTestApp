@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Set;
 
 import mera.com.testapp.api.db.DatabaseHelper;
+import mera.com.testapp.api.db.StateSortType;
 import mera.com.testapp.api.models.State;
 import mera.com.testapp.api.models.States;
 import retrofit2.Call;
@@ -41,8 +42,8 @@ public class WebService extends Service
         return binder;
     }
 
-    public Set<State> getStatesLocal(Context context, String countryFilter, DatabaseHelper.SortType sortType) {
-        return DatabaseHelper.getInstance(context).query(countryFilter, sortType);
+    public Set<State> getStatesLocal(Context context, String countryFilter, StateSortType sortType) {
+        return DatabaseHelper.getInstance(context).queryStatesByCountry(countryFilter, sortType);
     }
 
     public void requestStates(final Context context)
@@ -71,8 +72,8 @@ public class WebService extends Service
                 }
 
                 DatabaseHelper helper = DatabaseHelper.getInstance(context);
-                helper.delete();
-                helper.insert(statesArray);
+                helper.clear();
+                helper.insertStates(statesArray);
 
                 sendBroadcast(new Intent(STATES_UPDATED_ACTION));
             }
