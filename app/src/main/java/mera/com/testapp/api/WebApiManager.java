@@ -2,12 +2,9 @@ package mera.com.testapp.api;
 
 import android.support.annotation.NonNull;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
-import retrofit2.Call;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -26,7 +23,7 @@ class WebApiManager {
     }
 
     @NonNull
-    private static Retrofit getRetrofit() {
+    private Retrofit getRetrofit() {
         return new Retrofit.Builder()
                 .baseUrl(API_ENDPOINT)
                 .addConverterFactory(GsonConverterFactory.create())
@@ -34,15 +31,10 @@ class WebApiManager {
                 .build();
     }
 
-    private static OkHttpClient getClient() {
+    private OkHttpClient getClient() {
         return new OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS).build();
-    }
-
-    <T> T execute(Call<T> request) throws IOException {
-        final Response<T> response = request.execute();
-        return response.body();
     }
 }

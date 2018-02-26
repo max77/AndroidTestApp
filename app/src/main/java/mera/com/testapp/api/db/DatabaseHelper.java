@@ -19,23 +19,9 @@ import static mera.com.testapp.api.db.StateTable.TABLE_STATE;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final int DB_VERSION = 1;
 
-    // double-checked thread-safe singleton implementation (see Wiki ;-) )
-    // p.s. no need of keeping static Context here
-    private static volatile DatabaseHelper sInstance = null;
+    // there's no need in making DatabaseHelper a singleton
 
-    public static DatabaseHelper getInstance(Context context) {
-        if (sInstance == null) {
-            synchronized (DatabaseHelper.class) {
-                if (sInstance == null) {
-                    sInstance = new DatabaseHelper(context);
-                }
-            }
-        }
-
-        return sInstance;
-    }
-
-    private DatabaseHelper(Context context) {
+    public DatabaseHelper(Context context) {
         // replaced hardcoded version with constant field
         super(context, "database.db", null, DB_VERSION);
     }

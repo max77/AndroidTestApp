@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
@@ -34,7 +35,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     private static final String TAG = ListFragment.class.getSimpleName();
 
     private Context mContext;
-    private static final String[] COUNTRIES = new String[]{"All", "Germany", "United RawStates"};
+    private static final String[] COUNTRIES = new String[]{"All", "Germany", "United States"};
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private ListAdapter mAdapter;
@@ -113,14 +114,14 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     private void registerReceivers() {
         if (mStatesReceiver == null) {
             mStatesReceiver = new StatesReceiver();
-            mContext.registerReceiver(mStatesReceiver, new IntentFilter(WebService.STATES_UPDATED_ACTION));
+            LocalBroadcastManager.getInstance(mContext).registerReceiver(mStatesReceiver, new IntentFilter(WebService.STATES_UPDATED_ACTION));
         }
     }
 
     private void unregisterReceivers() {
         if (mStatesReceiver != null) {
             try {
-                mContext.unregisterReceiver(mStatesReceiver);
+                LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mStatesReceiver);
             } catch (Exception e) {
                 Log.e(TAG, "Can unregister StatesReceiver", e);
             }
@@ -132,7 +133,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "StatesReceiver: onReceive action: " + intent.getAction());
-            Set<AircraftState> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
+            Set<AircraftState> localStates = service.getStatesLocal(mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();
@@ -146,7 +147,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     public void onRefresh() {
         if (isServiceAvailable()) {
             mSwipeRefreshLayout.setRefreshing(true);
-            service.requestStates(mContext);
+            service.requestStates();
         }
     }
 
@@ -180,7 +181,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
             WebService.LocalBinder localBinder = (WebService.LocalBinder) iBinder;
             service = localBinder.getService();
-            Set<AircraftState> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
+            Set<AircraftState> localStates = service.getStatesLocal(mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();
@@ -189,7 +190,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
             if (isServiceAvailable()) {
                 mSwipeRefreshLayout.setRefreshing(true);
-                service.requestStates(mContext);
+                service.requestStates();
             }
         }
 
