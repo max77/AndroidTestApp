@@ -8,12 +8,13 @@ import android.os.IBinder;
 import android.support.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import mera.com.testapp.api.db.DatabaseHelper;
 import mera.com.testapp.api.db.StateSortType;
-import mera.com.testapp.api.models.State;
-import mera.com.testapp.api.models.States;
+import mera.com.testapp.api.models.AircraftState;
+import mera.com.testapp.api.models.RawStates;
 import retrofit2.Call;
 
 public class WebService extends Service
@@ -42,7 +43,7 @@ public class WebService extends Service
         return binder;
     }
 
-    public Set<State> getStatesLocal(Context context, String countryFilter, StateSortType sortType) {
+    public Set<AircraftState> getStatesLocal(Context context, String countryFilter, StateSortType sortType) {
         return DatabaseHelper.getInstance(context).queryStatesByCountry(countryFilter, sortType);
     }
 
@@ -53,18 +54,18 @@ public class WebService extends Service
             @Override
             public void run()
             {
-                ArrayList<State> statesArray = new ArrayList<>();
+                ArrayList<AircraftState> statesArray = new ArrayList<>();
                 WebApiManager wm = new WebApiManager();
-                Call<States> call = wm.getWebApiInterface().getStates();
+                Call<RawStates> call = wm.getWebApiInterface().getStates();
                 try
                 {
-                    States states = wm.execute(call);
-                    if (states != null)
+                    RawStates rawStates = wm.execute(call);
+                    if (rawStates != null)
                     {
-                        ArrayList<ArrayList<String>> statesRaw = states.getStates();
-                        for (ArrayList<String> stateRaw : statesRaw)
+                        List<List<String>> statesRaw = rawStates.getStates();
+                        for (List<String> stateRaw : statesRaw)
                         {
-                            statesArray.add(State.parse(stateRaw));
+                            statesArray.add(AircraftState.fromStrings(stateRaw));
                         }
                     }
                 } catch (Exception e) {

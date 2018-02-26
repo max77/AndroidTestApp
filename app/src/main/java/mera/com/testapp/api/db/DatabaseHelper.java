@@ -8,12 +8,11 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import mera.com.testapp.api.models.State;
+import mera.com.testapp.api.models.AircraftState;
 
 import static mera.com.testapp.api.db.StateTable.TABLE_STATE;
 
@@ -56,7 +55,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // 1. insert WHAT ??
     // 2. should use more general type if possible
     // 3. what's the reason of returning false if not all states are inserted ?
-    public boolean insertStates(List<State> states) {
+    public boolean insertStates(List<AircraftState> states) {
         if (states == null || states.isEmpty()) {
             return false;
         }
@@ -65,7 +64,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.beginTransaction();
 
         try {
-            for (State state : states) {
+            for (AircraftState state : states) {
                 ContentValues cv = new ContentValues(4);
                 cv.put(StateTable.KEY_STATE_ICAO, state.getIcao24());
                 cv.put(StateTable.KEY_STATE_CALLSIGN, state.getCallsign());
@@ -89,9 +88,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // query WHAT ??
     // the filtering in the loop is non-optimal. Should use SQL instead
     // sortType should be non-null
-    public Set<State> queryStatesByCountry(String countryFilter, @NonNull StateSortType sortType) {
-        // insertion order sould be preserved
-        Set<State> result = new LinkedHashSet<>();
+    public Set<AircraftState> queryStatesByCountry(String countryFilter, @NonNull StateSortType sortType) {
+        // insertion order must be preserved
+        Set<AircraftState> result = new LinkedHashSet<>();
 
         // no need for writable db here
         SQLiteDatabase db = getReadableDatabase();

@@ -28,13 +28,13 @@ import java.util.Set;
 import mera.com.testapp.R;
 import mera.com.testapp.api.WebService;
 import mera.com.testapp.api.db.StateSortType;
-import mera.com.testapp.api.models.State;
+import mera.com.testapp.api.models.AircraftState;
 
 public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
     private static final String TAG = ListFragment.class.getSimpleName();
 
     private Context mContext;
-    private static final String[] COUNTRIES = new String[]{"All", "Germany", "United States"};
+    private static final String[] COUNTRIES = new String[]{"All", "Germany", "United RawStates"};
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private ListAdapter mAdapter;
@@ -132,7 +132,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "StatesReceiver: onReceive action: " + intent.getAction());
-            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
+            Set<AircraftState> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();
@@ -180,7 +180,7 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
             WebService.LocalBinder localBinder = (WebService.LocalBinder) iBinder;
             service = localBinder.getService();
-            Set<State> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
+            Set<AircraftState> localStates = service.getStatesLocal(mContext, mCountryFilter, StateSortType.NONE);
             if (localStates != null && !localStates.isEmpty()) {
                 mAdapter.setData(localStates);
                 MainActivity activity = (MainActivity) getActivity();

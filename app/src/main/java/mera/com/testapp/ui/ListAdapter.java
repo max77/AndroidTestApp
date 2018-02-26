@@ -10,11 +10,11 @@ import android.widget.TextView;
 import java.util.Set;
 
 import mera.com.testapp.R;
-import mera.com.testapp.api.models.State;
+import mera.com.testapp.api.models.AircraftState;
 
 class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
 
-    private State[] mDataset;
+    private AircraftState[] mDataset;
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         View rootView;
@@ -29,11 +29,11 @@ class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
     }
 
     ListAdapter() {
-        mDataset = new State[0];
+        mDataset = new AircraftState[0];
     }
 
-    public void setData(Set<State> dataset) {
-        mDataset = dataset.toArray(new State[dataset.size()]);
+    public void setData(Set<AircraftState> dataset) {
+        mDataset = dataset.toArray(new AircraftState[dataset.size()]);
         notifyDataSetChanged();
     }
 

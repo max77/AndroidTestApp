@@ -1,9 +1,8 @@
 package mera.com.testapp.api.db;
 
 import android.database.Cursor;
-import android.text.TextUtils;
 
-import mera.com.testapp.api.models.State;
+import mera.com.testapp.api.models.AircraftState;
 
 class StateTable {
     static final String TABLE_STATE = "state_table";
@@ -23,7 +22,7 @@ class StateTable {
 
     // 1. method has been given a meaningful name
     // 2. method has been changed according to new table scheme (REAL velocity)
-    static State fromCursor(Cursor cursor) {
+    static AircraftState fromCursor(Cursor cursor) {
         String icao = cursor.getString(cursor.getColumnIndex(KEY_STATE_ICAO));
         String callsign = cursor.getString(cursor.getColumnIndex(KEY_STATE_CALLSIGN));
         String country = cursor.getString(cursor.getColumnIndex(KEY_STATE_COUNTRY));
@@ -36,6 +35,6 @@ class StateTable {
             velocity = 0;
         }
 
-        return new State(icao, callsign, country, velocity);
+        return new AircraftState(icao, callsign, country, velocity);
     }
 }

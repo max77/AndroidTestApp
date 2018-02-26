@@ -5,8 +5,11 @@ import android.os.Parcelable;
 import android.text.TextUtils;
 
 import java.util.ArrayList;
+import java.util.List;
 
-public class State implements Parcelable {
+// renamed to AircraftState
+// made final
+public final class AircraftState implements Parcelable {
     private String mIcao24;
     private String mCallsign;
     private String mOriginCountry;
@@ -20,14 +23,14 @@ public class State implements Parcelable {
     private float heading;
     private float vertical_rate;
 
-    public State(String icao, String callsign, String country, float velocity) {
+    public AircraftState(String icao, String callsign, String country, float velocity) {
         this.mIcao24 = icao;
         this.mCallsign = callsign;
         this.mOriginCountry = country;
         this.mVelocity = velocity;
     }
 
-    private State(Parcel parcel) {
+    private AircraftState(Parcel parcel) {
         mIcao24 = parcel.readString();
         mCallsign = parcel.readString();
         mOriginCountry = parcel.readString();
@@ -79,31 +82,41 @@ public class State implements Parcelable {
         dest.writeFloat(vertical_rate);
     }
 
-    public static final Parcelable.Creator<State> CREATOR = new Parcelable.Creator<State>() {
-        public State createFromParcel(Parcel in) {
-            return new State(in);
+    public static final Parcelable.Creator<AircraftState> CREATOR = new Parcelable.Creator<AircraftState>() {
+        public AircraftState createFromParcel(Parcel in) {
+            return new AircraftState(in);
         }
-        public State[] newArray(int size) {
-            return new State[size];
+
+        public AircraftState[] newArray(int size) {
+            return new AircraftState[size];
         }
     };
 
-    public static State parse(ArrayList<String> stateRaw) {
-        return new State(stateRaw.get(0), stateRaw.get(1),
+    public static AircraftState fromStrings(List<String> stateRaw) {
+        return new AircraftState(stateRaw.get(0), stateRaw.get(1),
                 stateRaw.get(2), Float.parseFloat(stateRaw.get(10)));
     }
 
+    // equals() and hashCode() has been replaced with Android Studio generated versions
     @Override
-    public boolean equals(Object obj) {
-        State state = (State) obj;
-        return TextUtils.equals(mIcao24, state.mIcao24)
-                && TextUtils.equals(mCallsign, state.mCallsign)
-                && mOriginCountry == state.mOriginCountry
-                && mVelocity == state.mVelocity;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AircraftState that = (AircraftState) o;
+
+        if (Float.compare(that.mVelocity, mVelocity) != 0) return false;
+        if (!mIcao24.equals(that.mIcao24)) return false;
+        if (!mCallsign.equals(that.mCallsign)) return false;
+        return mOriginCountry.equals(that.mOriginCountry);
     }
 
     @Override
     public int hashCode() {
-        return (int) mVelocity;
+        int result = mIcao24.hashCode();
+        result = 31 * result + mCallsign.hashCode();
+        result = 31 * result + mOriginCountry.hashCode();
+        result = 31 * result + (mVelocity != +0.0f ? Float.floatToIntBits(mVelocity) : 0);
+        return result;
     }
 }
