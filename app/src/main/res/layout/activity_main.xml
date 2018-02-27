@@ -6,8 +6,9 @@
     android:layout_height="match_parent"
     tools:context="mera.com.testapp.ui.MainActivity">
 
-    <FrameLayout
-        android:id="@+id/container"
+    <fragment
+        android:id="@+id/fragment_list"
+        android:name="mera.com.testapp.ui.ListFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 

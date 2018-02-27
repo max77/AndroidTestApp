@@ -1,6 +1,6 @@
 package mera.com.testapp.ui;
 
-import android.annotation.SuppressLint;
+import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,7 +14,8 @@ import mera.com.testapp.api.models.AircraftState;
 
 class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
 
-    private AircraftState[] mDataset;
+    private AircraftState[] mDataset = new AircraftState[0];
+    private Context mContext;
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         View rootView;
@@ -22,14 +23,20 @@ class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
         TextView callsign;
         TextView origin_country;
         TextView velocity;
+
         ViewHolder(View view) {
             super(view);
             rootView = view;
         }
     }
 
-    ListAdapter() {
-        mDataset = new AircraftState[0];
+    ListAdapter(Context context) {
+        mContext = context;
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return super.getItemId(position);
     }
 
     public void setData(Set<AircraftState> dataset) {
@@ -50,13 +57,14 @@ class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
         return vh;
     }
 
-    @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        holder.icao24.setText(mDataset[position].getIcao24());
-        holder.callsign.setText(mDataset[position].getCallsign());
-        holder.origin_country.setText(mDataset[position].getOriginCountry());
-        holder.velocity.setText(Float.toString(mDataset[position].getVelocity()));
+        AircraftState state = mDataset[position];
+
+        holder.icao24.setText(state.getIcao24());
+        holder.callsign.setText(state.getCallsign());
+        holder.origin_country.setText(state.getOriginCountry());
+        holder.velocity.setText(mContext.getString(R.string.velocity, state.getVelocity()));
     }
 
     @Override

@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
@@ -23,35 +24,63 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import mera.com.testapp.R;
 import mera.com.testapp.api.WebService;
 import mera.com.testapp.api.db.StateSortType;
 import mera.com.testapp.api.models.AircraftState;
 
+// db operations moved to background thread
+// state saving/restoring added (country filter, countries list)
+// country filter improved
 public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
     private static final String TAG = ListFragment.class.getSimpleName();
+    private static final String EXTRA_CHOSEN_COUNTRY = "chosen_country";
+    private static final String EXTRA_COUNTRIES = "countries";
 
     private Context mContext;
-    private static final String[] COUNTRIES = new String[]{"All", "Germany", "United States"};
+    private ArrayList<String> mCountries = new ArrayList<>();
+    private String mCountryFilter;
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
+    private RecyclerView mRecyclerView;
     private ListAdapter mAdapter;
 
-    private WebService service;
-    private boolean is_service_bound;
+    private WebService mWebService;
+    private boolean isServiceBound;
 
     private StatesReceiver mStatesReceiver;
 
-    private String mCountryFilter;
+    private ServiceConnection mConnection = new ServiceConnection() {
 
-    private int mChosenFilterPosition;
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            isServiceBound = true;
 
-    public ListFragment(Context context) {
-        mContext = context;
-    }
+            WebService.LocalBinder localBinder = (WebService.LocalBinder) iBinder;
+            mWebService = localBinder.getService();
+
+            // code duplication removed
+            updateAircraftListAndCountries();
+
+            if (isServiceAvailable()) {
+                mSwipeRefreshLayout.setRefreshing(true);
+                mWebService.requestStates();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            isServiceBound = false;
+            mWebService = null;
+        }
+    };
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -62,21 +91,25 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        if (savedInstanceState != null) {
+            mCountryFilter = savedInstanceState.getString(EXTRA_CHOSEN_COUNTRY, null);
+            mCountries = savedInstanceState.getStringArrayList(EXTRA_COUNTRIES);
+        }
+
         View v = inflater.inflate(R.layout.fragment_list, container, false);
+
+        mContext = getContext();
 
         mSwipeRefreshLayout = (SwipeRefreshLayout) v.findViewById(R.id.list_refresh);
         mSwipeRefreshLayout.setOnRefreshListener(this);
 
-        RecyclerView recyclerView = (RecyclerView) v.findViewById(R.id.list);
-
+        mRecyclerView = (RecyclerView) v.findViewById(R.id.list);
         LinearLayoutManager layoutManager = new LinearLayoutManager(mContext);
-        recyclerView.setLayoutManager(layoutManager);
-
-        mAdapter = new ListAdapter();
-        recyclerView.setAdapter(mAdapter);
+        mRecyclerView.setLayoutManager(layoutManager);
+        mAdapter = new ListAdapter(mContext);
+        mRecyclerView.setAdapter(mAdapter);
 
         registerReceivers();
-
         mContext.bindService(WebService.createServiceIntent(mContext), mConnection, Context.BIND_AUTO_CREATE);
 
         return v;
@@ -99,22 +132,32 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
     @Override
     public void onDestroyView() {
-        super.onDestroyView();
         unregisterReceivers();
         try {
             mContext.unbindService(mConnection);
 
-            is_service_bound = false;
-            service = null;
+            isServiceBound = false;
+            mWebService = null;
         } catch (Exception e) {
             Log.e(TAG, "An error occurred during the service stop.", e);
         }
+
+        super.onDestroyView();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString(EXTRA_CHOSEN_COUNTRY, mCountryFilter);
+        outState.putStringArrayList(EXTRA_COUNTRIES, mCountries);
+
+        super.onSaveInstanceState(outState);
     }
 
     private void registerReceivers() {
         if (mStatesReceiver == null) {
             mStatesReceiver = new StatesReceiver();
-            LocalBroadcastManager.getInstance(mContext).registerReceiver(mStatesReceiver, new IntentFilter(WebService.STATES_UPDATED_ACTION));
+            LocalBroadcastManager.getInstance(mContext)
+                    .registerReceiver(mStatesReceiver, new IntentFilter(WebService.STATES_UPDATED_ACTION));
         }
     }
 
@@ -133,71 +176,85 @@ public class ListFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "StatesReceiver: onReceive action: " + intent.getAction());
-            Set<AircraftState> localStates = service.getStatesLocal(mCountryFilter, StateSortType.NONE);
-            if (localStates != null && !localStates.isEmpty()) {
-                mAdapter.setData(localStates);
-                MainActivity activity = (MainActivity) getActivity();
-                activity.updateActionBar(Integer.toString(localStates.size()));
+            if (!WebService.isUpdateSuccessful(intent)) {
+                showError();
+            } else {
+                updateAircraftListAndCountries();
             }
+
             mSwipeRefreshLayout.setRefreshing(false);
         }
+    }
+
+    // retreiving data from DB in background thread
+    // shouldn't lead to leaked activity since the background data fetching is fast enough
+    private void updateAircraftListAndCountries() {
+        new AsyncTask<Void, Void, Set<AircraftState>>() {
+            @Override
+            protected Set<AircraftState> doInBackground(Void... voids) {
+                Set<AircraftState> states = isServiceAvailable() ?
+                        mWebService.getStatesLocal(mCountryFilter, StateSortType.NONE) :
+                        null;
+
+                if (states != null && mCountryFilter == null) {
+                    SortedSet<String> countrySet = new TreeSet<>();
+
+                    for (AircraftState state : states) {
+                        countrySet.add(state.getOriginCountry());
+                    }
+
+                    mCountries = new ArrayList<>(countrySet);
+                    mCountries.add(0, getString(R.string.country_filter_all));
+                }
+
+                return states;
+            }
+
+            @Override
+            protected void onPostExecute(Set<AircraftState> aircraftStateSet) {
+                // check for isAdded() to make sure that target activity exists
+                if (isAdded() && aircraftStateSet != null && !aircraftStateSet.isEmpty()) {
+                    mAdapter.setData(aircraftStateSet);
+                    mRecyclerView.scrollToPosition(0);
+                    MainActivity activity = (MainActivity) getActivity();
+                    activity.updateActionBar(Integer.toString(aircraftStateSet.size()));
+                }
+            }
+        }.execute();
+    }
+
+    private void showError() {
+        Toast.makeText(mContext, R.string.update_error, Toast.LENGTH_LONG).show();
     }
 
     @Override
     public void onRefresh() {
         if (isServiceAvailable()) {
             mSwipeRefreshLayout.setRefreshing(true);
-            service.requestStates();
+            mWebService.requestStates();
         }
     }
 
     private void showFilterDialog() {
+        if (mCountries.isEmpty()) {
+            return;
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setSingleChoiceItems(COUNTRIES, mChosenFilterPosition, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                mChosenFilterPosition = which;
-                if (which == 0) {
-                    mCountryFilter = "";
-                } else {
-                    mCountryFilter = COUNTRIES[which];
-                }
-                getContext().sendBroadcast(new Intent(WebService.STATES_UPDATED_ACTION));
-                dialog.dismiss();
-            }
-        });
+        int filterPosition = mCountryFilter != null ? mCountries.indexOf(mCountryFilter) : 0;
+        builder.setSingleChoiceItems(mCountries.toArray(new String[0]), Math.max(0, filterPosition),
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mCountryFilter = which == 0 ? null : mCountries.get(which);
+                        updateAircraftListAndCountries();
+                        dialog.dismiss();
+                    }
+                });
         builder.create().show();
     }
 
     private boolean isServiceAvailable() {
-        return service != null && is_service_bound;
+        return mWebService != null && isServiceBound;
     }
-
-    private ServiceConnection mConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            is_service_bound = true;
-
-            WebService.LocalBinder localBinder = (WebService.LocalBinder) iBinder;
-            service = localBinder.getService();
-            Set<AircraftState> localStates = service.getStatesLocal(mCountryFilter, StateSortType.NONE);
-            if (localStates != null && !localStates.isEmpty()) {
-                mAdapter.setData(localStates);
-                MainActivity activity = (MainActivity) getActivity();
-                activity.updateActionBar(Integer.toString(localStates.size()));
-            }
-
-            if (isServiceAvailable()) {
-                mSwipeRefreshLayout.setRefreshing(true);
-                service.requestStates();
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            is_service_bound = false;
-            service = null;
-        }
-    };
 }

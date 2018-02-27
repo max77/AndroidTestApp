@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">TestApp</string>
+    <string name="velocity">%1$.2f m/s</string>
+    <string name="main_title">Active aircraft: %1$s</string>
+    <string name="update_error">Error updating aircraft list. Please try again.</string>
+    <string name="country_filter_all">All</string>
+
 </resources>
