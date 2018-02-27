@@ -2,11 +2,13 @@ package mera.com.testapp.ui;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.util.Locale;
 import java.util.Set;
 
 import mera.com.testapp.R;
@@ -61,10 +63,14 @@ class ListAdapter extends RecyclerView.Adapter<ListAdapter.ViewHolder> {
     public void onBindViewHolder(ViewHolder holder, int position) {
         AircraftState state = mDataset[position];
 
-        holder.icao24.setText(state.getIcao24());
-        holder.callsign.setText(state.getCallsign());
-        holder.origin_country.setText(state.getOriginCountry());
-        holder.velocity.setText(mContext.getString(R.string.velocity, state.getVelocity()));
+        holder.icao24.setText(fixText(state.getIcao24()));
+        holder.callsign.setText(fixText(state.getCallsign()));
+        holder.origin_country.setText(fixText(state.getOriginCountry()));
+        holder.velocity.setText(String.format(Locale.getDefault(), "%.1f", state.getVelocity()));
+    }
+
+    private String fixText(String text) {
+        return TextUtils.isEmpty(text) ? mContext.getString(R.string.no_data) : text.trim();
     }
 
     @Override
